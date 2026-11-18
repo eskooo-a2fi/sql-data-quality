@@ -48,3 +48,11 @@ See the [formula-driven Excel workbook](data_quality_review.xlsx) for a separate
 ## Data governance limitations
 
 Email alone is not a reliable real-world identity key, and this deliberately simplified matching logic would require a business-approved policy, exception queue, source-of-truth controls and an ID crosswalk before CRM updates. The fixture's six canonical customers are **not** an instruction to delete production records. The email regex is heuristic, not proof that an address exists or that marketing consent was obtained.
+
+## Evidence and edge cases
+
+**CV keywords demonstrated:** **Advanced SQL**, **SQL Queries**, **Data Cleaning**, **Duplicate Removal**, **Data Reconciliation**, **Data Validation**, **Database Management**, **Root-Cause Analysis**, **Data Accuracy**, **ETL Processes** (staging/cleaning pattern), **Rapid Triage**, and **Technical Documentation**.
+
+`07_failure_cases.sql` injects two additional broken order links, checks that both are classified, and uses `ROLLBACK` so the demo data stays deterministic. It illustrates a **fix-forward/incident-triage mindset** without claiming to operate a production incident platform.
+
+The workbook demonstrates Excel formula-based quality metrics. **VLOOKUP**, **Pivot Tables**, **Microsoft Access**, **Python ETL**, **UAT Testing** and **Workday** appear in role-specific CVs but are **not evidenced by this repository**. They require separate examples before making a portfolio claim about them.
