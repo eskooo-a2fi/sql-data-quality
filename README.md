@@ -1,10 +1,26 @@
-# SQL Data Quality & Reconciliation Portfolio
+# CRM Data Quality & SQL Reconciliation
 
-A reproducible PostgreSQL exercise for CRM / Data Quality Analyst interviews. It demonstrates **source-data profiling, duplicate detection, missing-key investigation, left-join reconciliation, and CTE-based cleansing**. All records are fictional.
+[![PostgreSQL checks](https://github.com/eskooo-a2fi/sql-data-quality/actions/workflows/ci.yml/badge.svg)](https://github.com/eskooo-a2fi/sql-data-quality/actions/workflows/ci.yml)
 
-## Run the scripts
+**An auditable data-quality case study** using fictional customer and order records with duplicate IDs, missing emails, invalid foreign keys and inconsistent formatting. The workflow profiles defects, classifies reconciliation issues, selects canonical records with CTEs, and asserts expected outcomes.
 
-Use PostgreSQL 15+ and a database you can safely modify. **`01_seed_messy_data.sql` drops/recreates the `dq_portfolio` schema** — never run it in a live database.
+![Screenshot of the Excel data-quality dashboard, with fictional data](docs/data-quality-dashboard.png)
+
+## Scenario and results
+
+A CRM import includes **12 customer rows and 8 order rows**, intentionally containing inconsistent fields. The companion Excel workbook is an illustrative calculation dashboard; the PostgreSQL scripts run independently.
+
+| Business question | Approach | Interview value |
+| --- | --- | --- |
+| Which customers are duplicated? | Normalised keys and window counts | Detect both repeated IDs and email-based duplicates |
+| Which orders cannot link to customers? | `NOT EXISTS` and separate reasons | Distinguish NULL IDs from invalid IDs |
+| Can orders be reconciled without double-counting? | Canonical customer CTE plus `LEFT JOIN` | Prevent one-to-many inflation |
+| Which customers should be retained? | Validity checks and deterministic CTE ranking | Explain business rules and tie-breaking |
+| How do we know the result stays stable? | Assertion SQL and GitHub Actions | Make quality standards repeatable |
+
+## Reproduce the analysis
+
+Use PostgreSQL 15+ in a **disposable database**. **The first script drops and recreates the `dq_portfolio` schema**; do not run it on production data.
 
 ```bash
 createdb dq_portfolio_demo
@@ -16,34 +32,19 @@ psql -X -v ON_ERROR_STOP=1 -d dq_portfolio_demo -f sql/05_clean_customers_cte.sq
 psql -X -v ON_ERROR_STOP=1 -d dq_portfolio_demo -f sql/06_quality_assertions.sql
 ```
 
-Alternatively, connect with pgAdmin and execute each file in numerical order. You need not create a desktop folder manually: unzip this repository to your preferred location.
+See the [formula-driven Excel workbook](data_quality_review.xlsx) for a separate quality-register and KPI dashboard. It uses fabricated records only.
 
-## What each query proves — interview explanation
+## Script-by-script interview guide
 
-| File | What it does | What to say |
-| --- | --- | --- |
-| `01_seed_messy_data.sql` | Creates unconstrained **staging** customers/orders tables with duplicates, NULL email/name/customer IDs, malformed email and orphan orders. | “I preserve defects in raw staging rather than silently discarding rows.” |
-| `02_identify_duplicates.sql` | Normalises case/whitespace, uses window `COUNT(*)` to flag repeated business IDs or emails. | “I distinguish physical rows from real-world customer identity; NULL email isn't treated as a duplicate key.” |
-| `03_find_orphaned_orders.sql` | Uses `NOT EXISTS` and separate reasons for missing and unknown foreign keys. | “A NULL join key and an invalid non-NULL join key need different remediation.” |
-| `04_reconcile_with_left_join.sql` | Uses a window function to choose the latest record per ID, then `LEFT JOIN` to keep every order in the output. | “A direct join to duplicate staging IDs would inflate order totals. I dedupe before reconciliation.” |
-| `05_clean_customers_cte.sql` | `standardised → validated → one_per_id → one_per_email`, keeping the newest valid canonical row. | “CTEs make each rule auditable. The winning record and tie-break are explicit, not arbitrary.” |
-| `06_quality_assertions.sql` | A PostgreSQL DO block asserts fixture counts and invalid links. | “I convert expectations into repeatable automated quality checks.” |
+| SQL file | Why it matters |
+| --- | --- |
+| [`01_seed_messy_data.sql`](sql/01_seed_messy_data.sql) | Preserve defects in staging rather than silently fixing the source |
+| [`02_identify_duplicates.sql`](sql/02_identify_duplicates.sql) | Case/space normalisation before duplicate detection |
+| [`03_find_orphaned_orders.sql`](sql/03_find_orphaned_orders.sql) | Separate missing customer IDs from unmatched non-null IDs |
+| [`04_reconcile_with_left_join.sql`](sql/04_reconcile_with_left_join.sql) | Dedupe the customer dimension before joining orders |
+| [`05_clean_customers_cte.sql`](sql/05_clean_customers_cte.sql) | Explain standardise → validate → choose one per ID → choose one per email |
+| [`06_quality_assertions.sql`](sql/06_quality_assertions.sql) | Test fixture assumptions and outcome counts in PostgreSQL |
 
-## Known limitations and data governance
+## Data governance limitations
 
-- These are **demo rules**, not definitive customer-mastering rules. Email matching alone can merge different people; repeated IDs can reflect source-system collisions. In a real CRM, use governed match thresholds and human review.
-- The simplified email regex is a **data-quality heuristic**, not a complete RFC validation rule. An email passing the regex is not proof of deliverability or consent.
-- The cleaned view outputs **six** customers (IDs 1001, 1003, 1006, 1008, 1009, 1010). In particular, customer ID 1005 is superseded by 1006 because both share the normalised email and 1006 has the later update. **Do not remove ID 1005 from an actual CRM without an audited ID crosswalk** — otherwise order 5006 would become a dangling reference.
-- In the mock reconciliation, order 5002 has a missing customer email, 5003 references missing customer ID 9999, and 5004 has a NULL customer ID.
-- For Excel competency, see `data_quality_review.xlsx` in this folder: it contains a formula-driven quality register, reconciliation examples, and an interview-ready KPI dashboard. The workbook is illustrative and independent of the `psql` results.
-
-## GitHub
-
-```bash
-git init
-git add .
-git commit -m "Add SQL data cleaning and reconciliation exercises"
-gh repo create sql-data-quality --public --source=. --remote=origin --push
-```
-
-Requires `gh auth login`; never publish real customer data.
+Email alone is not a reliable real-world identity key, and this deliberately simplified matching logic would require a business-approved policy, exception queue, source-of-truth controls and an ID crosswalk before CRM updates. The fixture's six canonical customers are **not** an instruction to delete production records. The email regex is heuristic, not proof that an address exists or that marketing consent was obtained.
